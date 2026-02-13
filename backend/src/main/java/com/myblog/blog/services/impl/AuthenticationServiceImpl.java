@@ -7,6 +7,8 @@ import io.jsonwebtoken.security.Keys;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+
+import com.myblog.blog.domain.entities.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
 import com.myblog.blog.services.AuthenticationService;
+import com.myblog.blog.services.UserService;
 
 import java.nio.file.AccessDeniedException;
 import java.security.Key;
@@ -28,12 +31,13 @@ import java.util.Map;
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsService userDetailsService; // or add a method in here 
+    private final UserService userService; // should i use this inside 
 
     @Value("${jwt.secret}")
     private String secretKey;
 
-    private final Long jwtExpiryMs = 15 * 60 * 1000L; // 15 minutes in ms
+    private final Long jwtExpiryMs = 2 * 60 * 1000L; // 2 minutes in ms
     private final Long refreshExpiryMs = 7 * 24 * 60 * 60 * 1000L; // 7 days in ms
 
     @Override
@@ -56,11 +60,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
+
     @Override
     public String generateRefreshToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
-
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(userDetails.getUsername())
@@ -71,7 +75,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    public UserDetails validateToken(String token)  {
+    public UserDetails validateToken(String token) {
         Claims claims = extractInfo(token);
         if (!"access".equals(claims.get("type")))
             throw new BadCredentialsException("misuse of refresh token");
@@ -80,13 +84,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    public UserDetails validateRefreshToken(String token)  {
+    public UserDetails validateRefreshToken(String token) {
         Claims claims = extractInfo(token);
         // validate that the token is in the database
         if (!"refresh".equals(claims.get("type")))
             throw new BadCredentialsException("misuse of access token");
-        String username = claims.getSubject();
-        return userDetailsService.loadUserByUsername(username);
+        User user = userService.findByJwtRefreshToken(token);
+        return userDetailsService.loadUserByUsername(user.getEmail());
     }
 
     private Claims extractInfo(String token) {

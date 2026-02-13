@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,8 +45,13 @@ public class UserServiceImpl implements UserService {
     public void setRefreshToken(String email, String refreshToken) {
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+                .orElseThrow(() -> new BadCredentialsException("User not found Email"));
         user.setJwtRefreshToken(refreshToken);
+    }
+    @Override
+    public User findByJwtRefreshToken(String token)
+    {
+        User user = userRepository.findByJwtRefreshToken(token).orElseThrow(() -> new BadCredentialsException("Not A Correct Token"));
+        return user;
     }
 }

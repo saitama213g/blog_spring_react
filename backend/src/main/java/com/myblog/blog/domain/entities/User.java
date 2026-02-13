@@ -38,7 +38,7 @@ public class User {
     private LocalDateTime createdAt;
 
     @Column(nullable = true)
-    private String JwtRefreshToken;
+    private String jwtRefreshToken;
 
     @Override
     public boolean equals(Object o) {

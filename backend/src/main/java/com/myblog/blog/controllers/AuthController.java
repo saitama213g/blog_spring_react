@@ -2,14 +2,11 @@ package com.myblog.blog.controllers;
 
 import lombok.RequiredArgsConstructor;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,7 +17,9 @@ import com.myblog.blog.domain.dtos.LoginRequest;
 import com.myblog.blog.domain.dtos.SiginRequest;
 import com.myblog.blog.services.AuthenticationService;
 import com.myblog.blog.services.UserService;
-import com.myblog.blog.services.impl.TokenBlacklistService;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 
@@ -34,29 +33,38 @@ public class AuthController {
     private final AuthenticationService authenticationService;
     private final UserDetailsService userDetailsService;
     private final UserService userservice;
-    private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest loginRequest) {
+    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletResponse response) {
         UserDetails userDetails = authenticationService.authenticate(
                 loginRequest.getEmail(),
                 loginRequest.getPassword()
         );
-        String token = authenticationService.generateToken(userDetails);
-        String refreshtoken = authenticationService.generateRefreshToken(userDetails);
+        String accessToken = authenticationService.generateToken(userDetails);
+        String refreshToken = authenticationService.generateRefreshToken(userDetails);
 
-        userservice.setRefreshToken(userDetails.getUsername(), refreshtoken);
+        userservice.setRefreshToken(userDetails.getUsername(), refreshToken);
+
+        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge((int) authenticationService.getJwtRefreshExpirySeconds());
+        response.addCookie(refreshCookie);
+
+        long nowSeconds = System.currentTimeMillis() / 1000L;
+        long expiresAt = nowSeconds + authenticationService.getJwtExpirySeconds();
+
         AuthResponse authResponse = AuthResponse.builder()
-        .token(token)
+        .token(accessToken)
         .expiresIn(authenticationService.getJwtExpirySeconds())
-        .refresh_token(refreshtoken)
-        .refresh_expiresIn(authenticationService.getJwtRefreshExpirySeconds())
+        .expiresAt(expiresAt)
         .build();
         return ResponseEntity.ok(authResponse);
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody @Valid SiginRequest signinRequest) {
+    public ResponseEntity<AuthResponse> register(@RequestBody @Valid SiginRequest signinRequest, HttpServletResponse response) {
         User user = userservice.registerUser(
                 signinRequest.getName(),
                 signinRequest.getEmail(),
@@ -64,16 +72,26 @@ public class AuthController {
         );
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String refreshtoken = authenticationService.generateRefreshToken(userDetails);
-        userservice.setRefreshToken(userDetails.getUsername(), refreshtoken);
+        String refreshToken = authenticationService.generateRefreshToken(userDetails);
+        userservice.setRefreshToken(userDetails.getUsername(), refreshToken);
         String token = authenticationService.generateToken(userDetails);
+        
+        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge((int) authenticationService.getJwtRefreshExpirySeconds());
+        response.addCookie(refreshCookie);
+
+        long nowSeconds = System.currentTimeMillis() / 1000L;
+        long expiresAt = nowSeconds + authenticationService.getJwtExpirySeconds();
 
         AuthResponse authResponse = AuthResponse.builder()
         .token(token)
         .expiresIn(authenticationService.getJwtExpirySeconds())
-        .refresh_token(refreshtoken)
-        .refresh_expiresIn(authenticationService.getJwtRefreshExpirySeconds())
+        .expiresAt(expiresAt)
         .build();
+
         return ResponseEntity.ok(authResponse);
     }
     @PostMapping("/logout")
@@ -85,14 +103,19 @@ public class AuthController {
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<Map<String, String>> refreshToken() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetails userDetails = (UserDetails)authentication.getPrincipal();
-        String newtoken = authenticationService.generateToken(userDetails);
-        Map<String, String> response = new HashMap<>();
-        response.put("token", newtoken);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> refreshToken(@CookieValue(name="refresh_token") String refreshToken) {
+        UserDetails userDetails = authenticationService.validateRefreshToken(refreshToken);
+        String newToken = authenticationService.generateToken(userDetails);
+                long nowSeconds = System.currentTimeMillis() / 1000L;
+        long expiresAt = nowSeconds + authenticationService.getJwtExpirySeconds();
+
+        AuthResponse authResponse = AuthResponse.builder()
+        .token(newToken)
+        .expiresIn(authenticationService.getJwtExpirySeconds())
+        .expiresAt(expiresAt)
+        .build();
+        return ResponseEntity.ok(
+            authResponse
+        );
     }
-    
-    // maybe add another route for refresh-token that will be hit when the user refreshes or the token has timed out
 }

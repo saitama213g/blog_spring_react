@@ -12,5 +12,6 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmail(String email);
-
+    boolean existsByJwtRefreshToken(String refresh_token);
+    Optional<User> findByJwtRefreshToken(String token);
 }

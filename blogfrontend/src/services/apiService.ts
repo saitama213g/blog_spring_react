@@ -15,8 +15,9 @@ export interface LoginRequest {
 export interface AuthResponse {
   token: string;
   expiresIn: number;
-  refresh_token:string;
-  refresh_expiresIn:number
+  expiresAt: number;
+  // refresh_token:string;
+  // refresh_expiresIn:number
 }
 
 export interface Category {
@@ -106,7 +107,7 @@ class ApiService {
       (error: AxiosError) => {
         if (error.response?.status === 401) {
           localStorage.removeItem('token');
-          window.location.href = '/login';
+          // window.location.href = '/login';
         }
         return Promise.reject(this.handleError(error));
       }
@@ -134,18 +135,27 @@ class ApiService {
   public async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
     localStorage.setItem('token', response.data.token);
-    localStorage.setItem('refresh_token', response.data.refresh_token);
+    localStorage.setItem("expiresAt", response.data.expiresAt.toString());
     return response.data;
   }
 
+  public async refreshToken():Promise<AuthResponse>
+  {
+    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/refresh-token');
+    localStorage.setItem('token', response.data.token);
+    localStorage.setItem("expiresAt", response.data.expiresAt.toString());
+    return response.data;
+  }
   public async register(credentials: SigninRequest): Promise<AuthResponse> {
     const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', credentials);
     localStorage.setItem('token', response.data.token);
+    localStorage.setItem("expiresAt", response.data.expiresAt.toString());
     return response.data;
   }
 
   public logout(): void {
     localStorage.removeItem('token');
+    localStorage.removeItem('expiresAt');
   }
 
   // Posts endpoints
