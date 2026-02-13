@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.nio.file.AccessDeniedException;
 import java.util.Map;
 import com.myblog.blog.domain.dtos.ApiErrorResponse;
 import org.springframework.validation.FieldError;
@@ -25,10 +27,10 @@ public class ErrorController {
     public ResponseEntity<ApiErrorResponse> handleException(Exception ex) {
         log.error("Caught exception", ex);
         ApiErrorResponse error = ApiErrorResponse.builder()
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("An unexpected error occurred")
+                .status(HttpStatus.FORBIDDEN.value())
+                .message(ex.getMessage() + "here")
                 .build();
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
     
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -67,7 +69,7 @@ public class ErrorController {
     public ResponseEntity<ApiErrorResponse> handleBadCredentialsException(BadCredentialsException ex) {
         ApiErrorResponse error = ApiErrorResponse.builder()
                 .status(HttpStatus.UNAUTHORIZED.value())
-                .message("Incorrect username or password")
+                .message(ex.getMessage())
                 .build();
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }

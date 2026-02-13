@@ -15,6 +15,8 @@ export interface LoginRequest {
 export interface AuthResponse {
   token: string;
   expiresIn: number;
+  refresh_token:string;
+  refresh_expiresIn:number
 }
 
 export interface Category {
@@ -132,6 +134,7 @@ class ApiService {
   public async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
     localStorage.setItem('token', response.data.token);
+    localStorage.setItem('refresh_token', response.data.refresh_token);
     return response.data;
   }
 

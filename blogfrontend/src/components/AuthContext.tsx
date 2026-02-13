@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [RefreshToken, setRefreshToken] = useState<string | null>(localStorage.getItem('refresh_token'));
 
   // Initialize auth state from token
   useEffect(() => {
@@ -54,9 +55,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await apiService.login({ email, password });
-      
+
       localStorage.setItem('token', response.token);
+      localStorage.setItem('token', response.refresh_token);
       setToken(response.token);
+      setRefreshToken(response.refresh_token);
       setIsAuthenticated(true);
 
       // TODO: Add endpoint to fetch user profile after login
@@ -106,7 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    token
+    token,
   };
 
   return (

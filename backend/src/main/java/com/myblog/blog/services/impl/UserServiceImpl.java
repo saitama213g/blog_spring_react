@@ -1,6 +1,7 @@
 package com.myblog.blog.services.impl;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.userdetails.UserDetails;
@@ -37,5 +38,14 @@ public class UserServiceImpl implements UserService {
         usr.setEmail(email);
         usr.setPassword(passwordEncoder.encode(passsword));
         return userRepository.save(usr);
+    }
+    @Transactional
+    @Override
+    public void setRefreshToken(String email, String refreshToken) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setJwtRefreshToken(refreshToken);
     }
 }

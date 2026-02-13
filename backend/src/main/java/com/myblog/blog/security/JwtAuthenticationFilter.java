@@ -24,18 +24,19 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthenticationService authenticationService;
-    private final TokenBlacklistService tokenBlacklistService;
+    // private final TokenBlacklistService tokenBlacklistService;
 
-    private static final List<RequestMatcher> PUBLIC_ENDPOINTS = List.of(
-            new AntPathRequestMatcher("/api/v1/auth/login", "POST"),
-            new AntPathRequestMatcher("/api/v1/auth/register", "POST"),
-            new AntPathRequestMatcher("/api/v1/categories/**", "GET"),
-            new AntPathRequestMatcher("/api/v1/tags/**", "GET")
-    );
+    // private static final List<RequestMatcher> PUBLIC_ENDPOINTS = List.of(
+    //         new AntPathRequestMatcher("/api/v1/auth/login", "POST"),
+    //         new AntPathRequestMatcher("/api/v1/auth/register", "POST"),
+    //         new AntPathRequestMatcher("/api/v1/categories/**", "GET"),
+    //         new AntPathRequestMatcher("/api/v1/tags/**", "GET")
+    // );
+    private static final RequestMatcher REFRESH_PATH = new AntPathRequestMatcher("/api/v1/auth/refresh-token", "POST");
 
-    private boolean isPublic(HttpServletRequest request) {
-        return PUBLIC_ENDPOINTS.stream().anyMatch(matcher -> matcher.matches(request));
-    }
+    // private boolean isPublic(HttpServletRequest request) {
+    //     return PUBLIC_ENDPOINTS.stream().anyMatch(matcher -> matcher.matches(request));
+    // }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -44,19 +45,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractToken(request);
             
-            if (isPublic(request) || token == null) {
+            if (token == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            if (tokenBlacklistService.isBlacklisted(token)) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
-            }
-
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-    
-                UserDetails userDetails = authenticationService.validateToken(token);
+                UserDetails userDetails;
+                if (REFRESH_PATH.matches(request)) // then its a refresh token request
+                {
+
+                    System.err.println("refresh token");
+                    userDetails = authenticationService.validateRefreshToken(token);
+                }
+                else
+                {
+                    System.err.println("access token");
+                    userDetails = authenticationService.validateToken(token);
+                }
 
                 UsernamePasswordAuthenticationToken authentication = 
                         new UsernamePasswordAuthenticationToken(
@@ -75,9 +81,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
         } catch (Exception ex) {
-            SecurityContextHolder.clearContext();
-            log.warn("Invalid auth token", ex);
-        }
+        // Clear the SecurityContext so no fake authentication stays
+        SecurityContextHolder.clearContext();
+
+        // Log the issue
+        log.warn("Invalid auth tokeeeen", ex);
+
+        // Respond with 401 Unauthorized
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+        return; // stop further filter processing
+    }
     
         filterChain.doFilter(request, response);
     }

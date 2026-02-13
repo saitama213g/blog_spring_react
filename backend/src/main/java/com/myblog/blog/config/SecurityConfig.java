@@ -18,7 +18,6 @@ import com.myblog.blog.repositories.UserRepository;
 import com.myblog.blog.security.BlogUserDetailsService;
 import com.myblog.blog.security.JwtAuthenticationFilter;
 import com.myblog.blog.services.AuthenticationService;
-import com.myblog.blog.services.impl.TokenBlacklistService;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -27,8 +26,8 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationService authenticationService, TokenBlacklistService tokenBlacklistService) {
-        return new JwtAuthenticationFilter(authenticationService, tokenBlacklistService);
+    public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationService authenticationService) {
+        return new JwtAuthenticationFilter(authenticationService);
     }
 
     @Bean
@@ -42,6 +41,7 @@ public class SecurityConfig {
                     .email(email)
                     .password(passwordEncoder().encode("password"))
                     .build();
+        // add a tag and a categor
             return userRepository.save(newUser);
         });
 
@@ -78,7 +78,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Allow your frontend origin
-        configuration.setAllowedOrigins(List.of("http://localhost:4173")); // change in prod
+        configuration.setAllowedOrigins(List.of("http://localhost:5173")); // change in prod
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true); // if you use cookies / auth headers
