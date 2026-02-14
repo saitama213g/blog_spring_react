@@ -38,6 +38,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String secretKey;
 
     private final Long jwtExpiryMs = 2 * 60 * 1000L; // 2 minutes in ms
+    // private final Long refreshExpiryMs = 3 * 60 * 1000L; // 3 min in ms for testing only
     private final Long refreshExpiryMs = 7 * 24 * 60 * 60 * 1000L; // 7 days in ms
 
     @Override

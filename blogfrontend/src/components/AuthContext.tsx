@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { apiService } from '../services/apiService';
 
+
+
 interface AuthUser {
   id: string;
   name: string;
@@ -23,25 +25,27 @@ interface AuthProviderProps {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  // const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>("");
   const [tokenExp, setTokenExp] = useState<number>(0);
   const refreshTimeoutRef = useRef<number | null>(null);
-
   // Initialize auth state from token
   useEffect(() => {
     const initializeAuth = async () => {
-      // const storedToken = localStorage.getItem('token');
-      // const storedExpireAt = Number(localStorage.getItem('expiresAt')) || 0 ;
-      // if (storedToken && storedExpireAt) {
+      const storedToken = localStorage.getItem('token');
+      const storedExpireAt = Number(localStorage.getItem('expiresAt')) || 0 ;
+      // console.log("all of the initia");
+      if (storedToken && storedExpireAt) {
         try {
           // TODO: Add endpoint to fetch user profile
           // const userProfile = await apiService.getUserProfile();
           // setUser(userProfile);
           setIsAuthenticated(true);
-          // setToken(storedToken);
-          // setTokenExp(storedExpireAt)
+          setToken(storedToken);
+          setTokenExp(storedExpireAt)
+          // console.log("all of the initia 2");
         } catch (error) {
           // If token is invalid, clear authentication
           localStorage.removeItem('token');
@@ -49,7 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(null);
           setToken(null);
         }
-      // }
+      }
     };
 
     initializeAuth();
@@ -109,23 +113,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await apiService.refreshToken();
       setToken(response.token);
       setTokenExp(response.expiresAt);
-      console.log("token got refreshed");
-    } catch (err) {
+      setIsAuthenticated(true);
+      // console.log("token got refreshed");
+    } catch (err: any) {
       logout();
+
+      // If refresh token expired (unauthorized)
+      if (err?.status === 401) {
+        setIsAuthenticated(false);
+      }
     }
   }, [logout]);
 
-
   useEffect(() => {
+    
+    // console.log("starting refresh useeffect");
+    // console.log(tokenExp);
     if (!tokenExp) return;
-
-    const REFRESH_OFFSET = 60_000; // 1 min before expiry
+    // console.log("starting refresh journy");
+    const REFRESH_OFFSET = 30_000; // 1 min before expiry
     const now = Date.now();
     const delay = tokenExp * 1000 - now - REFRESH_OFFSET;
 
     // If already expired, refresh immediately
     if (delay <= 0) {
       refreshAccessToken();
+      // console.log("got refreshed without even waiting")
       return;
     }
 
@@ -133,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
     }
-
+    // console.log("waiting for expiration");
     // Schedule new refresh
     refreshTimeoutRef.current = setTimeout(() => {
       refreshAccessToken();
